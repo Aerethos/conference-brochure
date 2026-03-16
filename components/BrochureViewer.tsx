@@ -19,7 +19,7 @@ export default function BrochureViewer() {
   const lastTouchDistance = useRef<number | null>(null);
 
   const goToNextPage = useCallback(() => {
-    if (currentPage < TOTAL_PAGES - 1 && scale === 1) {
+  if (currentPage <= TOTAL_PAGES - 1 && scale === 1) {
       setCurrentPage((prev) => prev + 1);
       setImageLoaded(false);
       setImageError(false);
