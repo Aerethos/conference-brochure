@@ -7,7 +7,7 @@ import Navigation from './Navigation';
 const TOTAL_PAGES = 75;
 
 export default function BrochureViewer() {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [scale, setScale] = useState(1);
