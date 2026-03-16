@@ -29,7 +29,7 @@ export default function BrochureViewer() {
   }, [currentPage, scale]);
 
   const goToPreviousPage = useCallback(() => {
-    if (currentPage > 1 && scale === 1) {
+    if (currentPage > 0 && scale === 1) {
       setCurrentPage((prev) => prev - 1);
       setImageLoaded(false);
       setImageError(false);
