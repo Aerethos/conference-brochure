@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import Navigation from './Navigation';
 
@@ -8,41 +8,32 @@ const TOTAL_PAGES = 77;
 
 export default function BrochureViewer() {
   const [currentPage, setCurrentPage] = useState(0);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  
-  const imageContainerRef = useRef<HTMLDivElement>(null);
-  const lastTouchDistance = useRef<number | null>(null);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [flipDirection, setFlipDirection] = useState<'next' | 'prev' | null>(null);
 
   const goToNextPage = useCallback(() => {
-    if (currentPage < TOTAL_PAGES - 1 && scale === 1) {
-      setCurrentPage((prev) => prev + 1);
-      setImageLoaded(false);
-      setImageError(false);
-      setScale(1);
-      setPosition({ x: 0, y: 0 });
+    if (currentPage < TOTAL_PAGES - 1 && !isFlipping) {
+      setFlipDirection('next');
+      setIsFlipping(true);
+      setTimeout(() => {
+        setCurrentPage((prev) => prev + 1);
+        setIsFlipping(false);
+        setFlipDirection(null);
+      }, 600);
     }
-  }, [currentPage, scale]);
+  }, [currentPage, isFlipping]);
 
   const goToPreviousPage = useCallback(() => {
-    if (currentPage > 0 && scale === 1) {
-      setCurrentPage((prev) => prev - 1);
-      setImageLoaded(false);
-      setImageError(false);
-      setScale(1);
-      setPosition({ x: 0, y: 0 });
+    if (currentPage > 0 && !isFlipping) {
+      setFlipDirection('prev');
+      setIsFlipping(true);
+      setTimeout(() => {
+        setCurrentPage((prev) => prev - 1);
+        setIsFlipping(false);
+        setFlipDirection(null);
+      }, 600);
     }
-  }, [currentPage, scale]);
-
-  // Reset zoom when page changes
-  const resetZoom = () => {
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
-  };
+  }, [currentPage, isFlipping]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -51,8 +42,6 @@ export default function BrochureViewer() {
         goToPreviousPage();
       } else if (event.key === 'ArrowRight') {
         goToNextPage();
-      } else if (event.key === 'Escape') {
-        resetZoom();
       }
     };
 
@@ -60,134 +49,15 @@ export default function BrochureViewer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNextPage, goToPreviousPage]);
 
-  // Swipe handlers (only when not zoomed)
+  // Swipe handlers
   const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      if (scale === 1) goToNextPage();
-    },
-    onSwipedRight: () => {
-      if (scale === 1) goToPreviousPage();
-    },
+    onSwipedLeft: goToNextPage,
+    onSwipedRight: goToPreviousPage,
     trackMouse: false,
     trackTouch: true,
     delta: 50,
     preventScrollOnSwipe: true,
   });
-
-  // Pinch to zoom
-  useEffect(() => {
-    const container = imageContainerRef.current;
-    if (!container) return;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const distance = Math.hypot(
-          touch2.clientX - touch1.clientX,
-          touch2.clientY - touch1.clientY
-        );
-        lastTouchDistance.current = distance;
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && lastTouchDistance.current) {
-        e.preventDefault();
-        
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const distance = Math.hypot(
-          touch2.clientX - touch1.clientX,
-          touch2.clientY - touch1.clientY
-        );
-
-        const delta = distance - lastTouchDistance.current;
-        const scaleChange = delta * 0.01;
-        
-        setScale((prevScale) => {
-          const newScale = Math.min(Math.max(prevScale + scaleChange, 1), 4);
-          return newScale;
-        });
-
-        lastTouchDistance.current = distance;
-      }
-    };
-
-    const handleTouchEnd = () => {
-      lastTouchDistance.current = null;
-    };
-
-    container.addEventListener('touchstart', handleTouchStart);
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
-    container.addEventListener('touchend', handleTouchEnd);
-
-    return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, []);
-
-  // Mouse wheel zoom (desktop)
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = -e.deltaY * 0.01;
-      setScale((prevScale) => {
-        const newScale = Math.min(Math.max(prevScale + delta, 1), 4);
-        return newScale;
-      });
-    }
-  };
-
-  // Dragging when zoomed
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale > 1) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && scale > 1) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  // Touch dragging
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (scale > 1 && e.touches.length === 1) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.touches[0].clientX - position.x,
-        y: e.touches[0].clientY - position.y,
-      });
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (isDragging && scale > 1 && e.touches.length === 1) {
-      setPosition({
-        x: e.touches[0].clientX - dragStart.x,
-        y: e.touches[0].clientY - dragStart.y,
-      });
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
 
   // Preload adjacent pages
   useEffect(() => {
@@ -202,100 +72,122 @@ export default function BrochureViewer() {
   }, [currentPage]);
 
   const currentImageSrc = `/pages/page-${currentPage}.jpg`;
+  const nextImageSrc = currentPage < TOTAL_PAGES - 1 ? `/pages/page-${currentPage + 1}.jpg` : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-      {/* Page Display Area */}
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      {/* Flipbook Container */}
       <div
         {...swipeHandlers}
-        ref={imageContainerRef}
-        className="relative bg-white rounded-2xl shadow-2xl overflow-hidden"
-        style={{ touchAction: scale > 1 ? 'none' : 'pan-y' }}
-        onWheel={handleWheel}
+        className="relative mx-auto"
+        style={{
+          perspective: '2000px',
+          maxWidth: '900px',
+        }}
       >
-        {/* Loading Skeleton */}
-        {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 animate-pulse z-10">
-            <div className="text-gray-400 text-lg">Loading page {currentPage}...</div>
-          </div>
-        )}
+        {/* Book Spine Shadow */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-2 bg-gradient-to-r from-gray-400/30 via-gray-500/40 to-gray-400/30 transform -translate-x-1/2 z-10 shadow-lg" />
 
-        {/* Error State */}
-        {imageError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 p-8 z-10">
-            <div className="text-red-500 text-xl font-semibold mb-2">
-              Unable to load page {currentPage}
-            </div>
-            <div className="text-gray-600 text-sm">
-              Please ensure the image file exists at:
-            </div>
-            <code className="text-xs bg-gray-200 px-3 py-1 rounded mt-2">
-              /public/pages/page-{currentPage}.jpg
-            </code>
-          </div>
-        )}
-
-        {/* Page Image */}
-        <div
-          className={`
-            relative w-full transition-opacity duration-300
-            ${imageLoaded ? 'opacity-100 animate-fade-in' : 'opacity-0'}
-            ${scale > 1 ? 'cursor-move' : 'cursor-default'}
-          `}
-          style={{
-            aspectRatio: '210 / 297',
-            maxHeight: 'calc(100vh - 280px)',
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <img
-            src={currentImageSrc}
-            alt={`Brochure page ${currentPage} of ${TOTAL_PAGES}`}
-            className="w-full h-full object-contain select-none"
+        {/* Page Spread Container */}
+        <div className="relative bg-white rounded-lg shadow-2xl overflow-hidden" style={{ aspectRatio: '2 / 1.414' }}>
+          
+          {/* Left Page (Current) */}
+          <div 
+            className="absolute left-0 top-0 bottom-0 w-1/2 overflow-hidden"
             style={{
-              transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+              transformOrigin: 'right center',
             }}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => {
-              setImageLoaded(true);
-              setImageError(true);
+          >
+            <div className="relative w-full h-full bg-gray-50">
+              <img
+                src={currentImageSrc}
+                alt={`Page ${currentPage + 1}`}
+                className="w-full h-full object-contain p-4"
+                style={{
+                  filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.1))',
+                }}
+              />
+              
+              {/* Page number */}
+              <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-400 font-medium">
+                {currentPage + 1}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Page (Next page preview or blank) */}
+          <div 
+            className="absolute right-0 top-0 bottom-0 w-1/2 overflow-hidden"
+            style={{
+              transformOrigin: 'left center',
             }}
-            draggable={false}
+          >
+            {nextImageSrc ? (
+              <div className="relative w-full h-full bg-gray-50">
+                <img
+                  src={nextImageSrc}
+                  alt={`Page ${currentPage + 2}`}
+                  className="w-full h-full object-contain p-4"
+                  style={{
+                    filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.1))',
+                  }}
+                />
+                
+                {/* Page number */}
+                <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-400 font-medium">
+                  {currentPage + 2}
+                </div>
+              </div>
+            ) : (
+              <div className="w-full h-full bg-gray-100" />
+            )}
+          </div>
+
+          {/* Flipping Page Animation Overlay */}
+          {isFlipping && (
+            <div 
+              className="absolute top-0 bottom-0 w-1/2 bg-white shadow-2xl z-20"
+              style={{
+                left: flipDirection === 'next' ? '50%' : '0',
+                transformOrigin: flipDirection === 'next' ? 'left center' : 'right center',
+                transform: flipDirection === 'next' 
+                  ? 'perspective(2000px) rotateY(-180deg)' 
+                  : 'perspective(2000px) rotateY(180deg)',
+                transition: 'transform 0.6s cubic-bezier(0.645, 0.045, 0.355, 1)',
+                backfaceVisibility: 'hidden',
+              }}
+            >
+              <img
+                src={flipDirection === 'next' ? currentImageSrc : nextImageSrc || ''}
+                alt="Flipping page"
+                className="w-full h-full object-contain p-4"
+                style={{
+                  transform: 'scaleX(-1)',
+                }}
+              />
+            </div>
+          )}
+
+          {/* Click zones for navigation */}
+          <button
+            onClick={goToPreviousPage}
+            disabled={currentPage === 0 || isFlipping}
+            className="absolute left-0 top-0 bottom-0 w-1/2 cursor-pointer z-5 opacity-0 hover:opacity-0"
+            aria-label="Previous page"
+          />
+          
+          <button
+            onClick={goToNextPage}
+            disabled={currentPage >= TOTAL_PAGES - 1 || isFlipping}
+            className="absolute right-0 top-0 bottom-0 w-1/2 cursor-pointer z-5 opacity-0 hover:opacity-0"
+            aria-label="Next page"
           />
         </div>
 
-        {/* Zoom indicator */}
-        {scale > 1 && (
-          <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1.5 rounded-lg text-sm font-medium z-20">
-            {Math.round(scale * 100)}%
-          </div>
-        )}
-
-        {/* Reset zoom button */}
-        {scale > 1 && (
-          <button
-            onClick={resetZoom}
-            className="absolute top-4 left-4 bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors z-20"
-          >
-            Reset Zoom
-          </button>
-        )}
-
-        {/* Touch indicator for mobile */}
-        {scale === 1 && (
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 md:hidden pointer-events-none">
-            <div className="bg-black/20 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">
-              Swipe to navigate • Pinch to zoom
-            </div>
-          </div>
-        )}
+        {/* Mobile instruction */}
+        <div className="md:hidden text-center mt-4 text-sm text-gray-500">
+          Tap left/right or swipe to turn pages
+        </div>
       </div>
 
       {/* Navigation Controls */}
@@ -306,25 +198,25 @@ export default function BrochureViewer() {
         onNext={goToNextPage}
       />
 
-      {/* Keyboard hint for desktop */}
+      {/* Desktop keyboard hint */}
       <div className="hidden md:flex justify-center mt-6">
         <div className="text-sm text-gray-500 flex items-center gap-4">
           <span className="flex items-center gap-2">
             <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">←</kbd>
             <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">→</kbd>
-            <span>Arrow keys</span>
-          </span>
-          <span className="text-gray-300">•</span>
-          <span className="flex items-center gap-2">
-            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl</kbd>
-            <span>+ scroll to zoom</span>
-          </span>
-          <span className="text-gray-300">•</span>
-          <span className="flex items-center gap-2">
-            <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">Esc</kbd>
-            <span>Reset zoom</span>
+            <span>Arrow keys to flip pages</span>
           </span>
         </div>
+      </div>
+
+      {/* Instructions */}
+      <div className="mt-8 text-center">
+        <p className="text-sm text-gray-600 mb-2">
+          💡 <strong>Tip:</strong> Click on the left or right side of the book to flip pages
+        </p>
+        <p className="text-xs text-gray-500">
+          For a closer look, download the full PDF using the button above
+        </p>
       </div>
     </div>
   );
