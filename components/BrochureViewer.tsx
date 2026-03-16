@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import Navigation from './Navigation';
 
-const TOTAL_PAGES = 75;
+const TOTAL_PAGES = 76;
 
 export default function BrochureViewer() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -19,7 +19,7 @@ export default function BrochureViewer() {
   const lastTouchDistance = useRef<number | null>(null);
 
   const goToNextPage = useCallback(() => {
-    if (currentPage < TOTAL_PAGES && scale === 1) {
+    if (currentPage < TOTAL_PAGES - 1 && scale === 1) {
       setCurrentPage((prev) => prev + 1);
       setImageLoaded(false);
       setImageError(false);
@@ -191,11 +191,11 @@ export default function BrochureViewer() {
 
   // Preload adjacent pages
   useEffect(() => {
-    if (currentPage < TOTAL_PAGES) {
+    if (currentPage < TOTAL_PAGES - 1) {
       const nextImg = new window.Image();
       nextImg.src = `/pages/page-${currentPage + 1}.jpg`;
     }
-    if (currentPage > 1) {
+    if (currentPage > 0) {
       const prevImg = new window.Image();
       prevImg.src = `/pages/page-${currentPage - 1}.jpg`;
     }
@@ -300,7 +300,7 @@ export default function BrochureViewer() {
 
       {/* Navigation Controls */}
       <Navigation
-        currentPage={currentPage}
+        currentPage={currentPage + 1}
         totalPages={TOTAL_PAGES}
         onPrevious={goToPreviousPage}
         onNext={goToNextPage}
