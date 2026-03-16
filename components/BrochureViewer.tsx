@@ -345,7 +345,6 @@ export default function BrochureViewer() {
               src={zoomedImage}
               alt="Zoomed page"
               className="w-full h-auto"
-              style={{ imageRendering: 'high-quality' }}
             />
           </div>
 
