@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import Navigation from './Navigation';
 
-const TOTAL_PAGES = 78;
+const TOTAL_PAGES = 77;
 
 export default function BrochureViewer() {
   const [currentPage, setCurrentPage] = useState(0);
